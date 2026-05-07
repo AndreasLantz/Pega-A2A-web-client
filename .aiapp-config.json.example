@@ -1,0 +1,8 @@
+{
+  "pegaBaseUrl": "https://myHostURL/prweb",
+  "pegaAppAlias": "my-app",
+  "sessionSecret": "j6faBv1BVm_XmctgEskqJzFL_Rr_DvZKjf5oFsT0DQsUe6l-4UaLE5HglyEZSHBV",
+  "pegaClientId": "your-oauth-client-id",
+  "pegaClientSecret": "your-oauth-client-secret",
+  "pegaRedirectUri": "http://localhost:3000/api/auth/callback"
+}

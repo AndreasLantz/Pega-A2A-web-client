@@ -1,0 +1,16 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(mv /home/lanta/repos/AIApp/CLAUDE.md /tmp/AIApp_CLAUDE.md)",
+      "Bash(npx --yes create-next-app@latest . --typescript --tailwind --app --eslint --src-dir --import-alias \"@/*\" --use-npm --no-turbopack --yes)",
+      "Read(//tmp/**)",
+      "Bash(rm -rf aiapp-scaffold)",
+      "Bash(npx --yes create-next-app@latest aiapp-scaffold --typescript --tailwind --app --eslint --src-dir --import-alias \"@/*\" --use-npm --no-turbopack --yes)",
+      "Bash(shopt -s dotglob)",
+      "Bash(mv /tmp/aiapp-scaffold/* /home/lanta/repos/AIApp/)",
+      "Bash(rmdir /tmp/aiapp-scaffold)",
+      "Bash(mv /tmp/AIApp_CLAUDE.md /home/lanta/repos/AIApp/CLAUDE.md)",
+      "Bash(bash -c 'shopt -s dotglob && mv /tmp/aiapp-scaffold/* /home/lanta/repos/AIApp/ && rmdir /tmp/aiapp-scaffold')"
+    ]
+  }
+}

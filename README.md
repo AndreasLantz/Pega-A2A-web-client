@@ -96,7 +96,7 @@ src/
     pega-oauth.ts                                PKCE, code exchange, refresh
 ```
 
-## Roadmap
+## Potential roadmap/improvements
 
 - File attachments (the A2A client port has the upload helper available)
 - Server-side conversation persistence (currently localStorage)

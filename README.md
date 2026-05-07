@@ -99,5 +99,4 @@ src/
 ## Potential roadmap/improvements
 
 - File attachments (the A2A client port has the upload helper available)
-- Server-side conversation persistence (currently localStorage)
 - Streaming responses if the Pega A2A endpoint adds SSE

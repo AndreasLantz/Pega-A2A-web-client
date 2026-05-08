@@ -4,6 +4,8 @@ import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import ReactMarkdown from "react-markdown";
 import remarkGfm from "remark-gfm";
 import type { AgentCard } from "@/lib/a2a";
+import type { Locale } from "@/lib/i18n";
+import { getT } from "@/lib/i18n";
 import { Sidebar } from "@/components/Sidebar";
 
 interface Agent {
@@ -63,7 +65,14 @@ function saveConversations(items: Conversation[]) {
   }
 }
 
-export default function ChatClient({ userName }: { userName: string | null }) {
+export default function ChatClient({
+  userName,
+  locale,
+}: {
+  userName: string | null;
+  locale: Locale;
+}) {
+  const t = getT(locale);
   const [agents, setAgents] = useState<Agent[] | null>(null);
   const [agentsError, setAgentsError] = useState<string | null>(null);
   const [conversations, setConversations] = useState<Conversation[]>([]);
@@ -103,13 +112,16 @@ export default function ChatClient({ userName }: { userName: string | null }) {
       try {
         const res = await fetch("/api/agents");
         if (!res.ok) {
-          const body = (await res.json().catch(() => ({}))) as { error?: string };
+          const body = (await res.json().catch(() => ({}))) as {
+            error?: string;
+          };
           throw new Error(body.error ?? `HTTP ${res.status}`);
         }
         const data = (await res.json()) as { agents: Agent[] };
         if (!cancelled) setAgents(data.agents);
       } catch (e) {
-        if (!cancelled) setAgentsError(e instanceof Error ? e.message : "unknown");
+        if (!cancelled)
+          setAgentsError(e instanceof Error ? e.message : "unknown");
       }
     })();
     return () => {
@@ -214,7 +226,7 @@ export default function ChatClient({ userName }: { userName: string | null }) {
       const agentMsg: ChatMessage = {
         id: crypto.randomUUID(),
         role: "agent",
-        text: replyText || "(no response)",
+        text: replyText || t.chat.noResponse,
         state: data.state,
       };
       persist(
@@ -231,9 +243,11 @@ export default function ChatClient({ userName }: { userName: string | null }) {
       );
     } catch (e) {
       if (e instanceof DOMException && e.name === "AbortError") {
-        setSendError("Cancelled.");
+        setSendError(t.chat.cancelled);
       } else {
-        setSendError(e instanceof Error ? e.message : "Failed to send");
+        setSendError(
+          e instanceof Error ? e.message : t.chat.failedToSend,
+        );
       }
     } finally {
       if (abortRef.current === controller) abortRef.current = null;
@@ -243,24 +257,27 @@ export default function ChatClient({ userName }: { userName: string | null }) {
 
   return (
     <div className="flex flex-1 h-screen overflow-hidden">
-      <Sidebar current="chat" userName={userName}>
+      <Sidebar current="chat" userName={userName} locale={locale}>
         <div className="p-3 border-b border-black/10 dark:border-white/10">
           <button
             onClick={() => setShowAgentPicker(true)}
             className="w-full rounded-lg bg-black text-white dark:bg-white dark:text-black px-3 py-2 text-sm font-medium hover:opacity-90"
           >
-            + New chat
+            {t.chat.newChat}
           </button>
         </div>
 
         <div className="thin-scroll flex-1 overflow-y-auto">
           {conversations.length === 0 ? (
-            <div className="p-4 text-sm text-neutral-500">No conversations yet.</div>
+            <div className="p-4 text-sm text-neutral-500">
+              {t.chat.noConversations}
+            </div>
           ) : (
             <ul className="p-2 space-y-1">
               {conversations.map((c) => {
                 const preview =
-                  c.messages.find((m) => m.role === "user")?.text.slice(0, 60) ?? "(empty)";
+                  c.messages.find((m) => m.role === "user")?.text.slice(0, 60) ??
+                  t.chat.empty;
                 return (
                   <li key={c.id}>
                     <button
@@ -272,14 +289,16 @@ export default function ChatClient({ userName }: { userName: string | null }) {
                       }`}
                     >
                       <div className="flex-1 min-w-0">
-                        <div className="font-medium truncate">{defaultTitle(c)}</div>
+                        <div className="font-medium truncate">
+                          {defaultTitle(c)}
+                        </div>
                         <div className="text-xs text-neutral-500 truncate">
                           {c.title ? `${c.agentLabel} · ${preview}` : preview}
                         </div>
                       </div>
                       <span
                         role="button"
-                        aria-label="Delete conversation"
+                        aria-label={t.chat.deleteConversation}
                         onClick={(e) => {
                           e.stopPropagation();
                           deleteConversation(c.id);
@@ -304,19 +323,21 @@ export default function ChatClient({ userName }: { userName: string | null }) {
             error={agentsError}
             onStart={startConversation}
             onCancel={active ? () => setShowAgentPicker(false) : undefined}
+            t={t}
           />
         ) : (
           <>
             <header className="border-b border-black/10 dark:border-white/10 px-4 py-3">
               <EditableTitle
                 value={defaultTitle(active)}
-                onSave={(t) => renameConversation(active.id, t)}
+                onSave={(title) => renameConversation(active.id, title)}
+                clickToRename={t.chat.clickToRename}
               />
               <div className="mt-0.5 text-xs text-neutral-500 flex flex-wrap items-baseline gap-x-2 gap-y-0.5">
                 <span>{active.agentLabel}</span>
                 {active.contextId && (
                   <span className="flex items-baseline gap-1">
-                    <span className="opacity-60">context</span>
+                    <span className="opacity-60">{t.chat.context}</span>
                     <span className="font-mono break-all select-all">
                       {active.contextId}
                     </span>
@@ -325,17 +346,25 @@ export default function ChatClient({ userName }: { userName: string | null }) {
               </div>
             </header>
 
-            <div ref={scrollRef} className="thin-scroll flex-1 overflow-y-auto px-4 py-6">
+            <div
+              ref={scrollRef}
+              className="thin-scroll flex-1 overflow-y-auto px-4 py-6"
+            >
               <div className="mx-auto max-w-3xl space-y-4">
                 {active.messages.length === 0 && (
                   <EmptyChat
                     agentLabel={active.agentLabel}
-                    card={active.agentCardURL ? agentCards[active.agentCardURL] : undefined}
+                    card={
+                      active.agentCardURL
+                        ? agentCards[active.agentCardURL]
+                        : undefined
+                    }
                     onPick={(prompt) => setInput(prompt)}
+                    t={t}
                   />
                 )}
                 {active.messages.map((m) => (
-                  <MessageBubble key={m.id} message={m} />
+                  <MessageBubble key={m.id} message={m} t={t} />
                 ))}
                 {sending && <TypingIndicator />}
                 {sendError && (
@@ -354,11 +383,10 @@ export default function ChatClient({ userName }: { userName: string | null }) {
                   onSubmit={() => void send()}
                   onCancel={cancelSend}
                   sending={sending}
+                  t={t}
                 />
                 <div className="mt-1.5 text-xs text-neutral-500 px-1">
-                  <kbd className="font-sans">Enter</kbd> to send ·{" "}
-                  <kbd className="font-sans">Shift</kbd>+
-                  <kbd className="font-sans">Enter</kbd> for newline
+                  {t.chat.enterToSend}
                 </div>
               </div>
             </div>
@@ -372,9 +400,11 @@ export default function ChatClient({ userName }: { userName: string | null }) {
 function EditableTitle({
   value,
   onSave,
+  clickToRename,
 }: {
   value: string;
   onSave: (next: string) => void;
+  clickToRename: string;
 }) {
   const [editing, setEditing] = useState(false);
   const [draft, setDraft] = useState(value);
@@ -400,7 +430,7 @@ function EditableTitle({
     return (
       <button
         onClick={() => setEditing(true)}
-        title="Click to rename"
+        title={clickToRename}
         className="font-medium truncate text-left hover:underline decoration-dotted underline-offset-4"
       >
         {value}
@@ -428,7 +458,9 @@ function EditableTitle({
   );
 }
 
-function MessageBubble({ message }: { message: ChatMessage }) {
+type T = ReturnType<typeof getT>;
+
+function MessageBubble({ message, t }: { message: ChatMessage; t: T }) {
   const isUser = message.role === "user";
   return (
     <div className={`flex ${isUser ? "justify-end" : "justify-start"}`}>
@@ -441,7 +473,9 @@ function MessageBubble({ message }: { message: ChatMessage }) {
       >
         {isUser ? message.text : <AgentMarkdown text={message.text} />}
         {message.state && message.state !== "completed" && (
-          <div className="mt-1 text-xs opacity-60">state: {message.state}</div>
+          <div className="mt-1 text-xs opacity-60">
+            {t.chat.stateLabel(message.state)}
+          </div>
         )}
       </div>
     </div>
@@ -469,13 +503,19 @@ function AgentMarkdown({ text }: { text: string }) {
             <p className="my-1.5 first:mt-0 last:mb-0">{children}</p>
           ),
           h1: ({ children }) => (
-            <h1 className="text-base font-semibold mt-3 first:mt-0 mb-1">{children}</h1>
+            <h1 className="text-base font-semibold mt-3 first:mt-0 mb-1">
+              {children}
+            </h1>
           ),
           h2: ({ children }) => (
-            <h2 className="text-sm font-semibold mt-3 first:mt-0 mb-1">{children}</h2>
+            <h2 className="text-sm font-semibold mt-3 first:mt-0 mb-1">
+              {children}
+            </h2>
           ),
           h3: ({ children }) => (
-            <h3 className="text-sm font-semibold mt-2 first:mt-0 mb-1">{children}</h3>
+            <h3 className="text-sm font-semibold mt-2 first:mt-0 mb-1">
+              {children}
+            </h3>
           ),
           ul: ({ children }) => (
             <ul className="list-disc pl-5 my-1.5 space-y-0.5">{children}</ul>
@@ -523,7 +563,9 @@ function AgentMarkdown({ text }: { text: string }) {
               {children}
             </td>
           ),
-          hr: () => <hr className="my-3 border-black/10 dark:border-white/10" />,
+          hr: () => (
+            <hr className="my-3 border-black/10 dark:border-white/10" />
+          ),
         }}
       >
         {text}
@@ -554,16 +596,17 @@ function Composer({
   onSubmit,
   onCancel,
   sending,
+  t,
 }: {
   value: string;
   onChange: (v: string) => void;
   onSubmit: () => void;
   onCancel: () => void;
   sending: boolean;
+  t: T;
 }) {
   const taRef = useRef<HTMLTextAreaElement>(null);
 
-  // Auto-grow up to ~8 lines (approx 192px), then internal scroll.
   useEffect(() => {
     const el = taRef.current;
     if (!el) return;
@@ -583,7 +626,7 @@ function Composer({
             onSubmit();
           }
         }}
-        placeholder="Send a message…"
+        placeholder={t.chat.placeholder}
         rows={1}
         disabled={sending}
         className="thin-scroll flex-1 resize-none rounded-lg border border-black/10 dark:border-white/10 bg-white dark:bg-neutral-900 px-3 py-2 text-sm leading-6 focus:outline-none focus:ring-2 focus:ring-black/20 dark:focus:ring-white/20 disabled:opacity-60 max-h-48 overflow-y-auto"
@@ -593,7 +636,7 @@ function Composer({
           onClick={onCancel}
           className="rounded-lg bg-red-600 text-white px-4 py-2 text-sm font-medium hover:opacity-90 shrink-0"
         >
-          Cancel
+          {t.chat.cancel}
         </button>
       ) : (
         <button
@@ -601,7 +644,7 @@ function Composer({
           disabled={!value.trim()}
           className="rounded-lg bg-black text-white dark:bg-white dark:text-black px-4 py-2 text-sm font-medium disabled:opacity-40 shrink-0"
         >
-          Send
+          {t.chat.send}
         </button>
       )}
     </div>
@@ -612,10 +655,12 @@ function EmptyChat({
   agentLabel,
   card,
   onPick,
+  t,
 }: {
   agentLabel: string;
   card?: AgentCard;
   onPick: (prompt: string) => void;
+  t: T;
 }) {
   const examples = useMemo(() => {
     if (!card?.skills) return [] as string[];
@@ -626,16 +671,12 @@ function EmptyChat({
   return (
     <div className="text-center py-12">
       <p className="text-sm text-neutral-500">
-        Send a message to start chatting with{" "}
-        <span className="font-medium text-neutral-700 dark:text-neutral-300">
-          {agentLabel}
-        </span>
-        .
+        {t.chat.sendMessageTo(agentLabel)}
       </p>
       {examples.length > 0 && (
         <div className="mt-5">
           <div className="text-xs uppercase tracking-wide text-neutral-400 mb-2">
-            Try one
+            {t.chat.tryOne}
           </div>
           <ul className="flex flex-wrap justify-center gap-2 max-w-xl mx-auto">
             {examples.map((ex, i) => (
@@ -660,11 +701,13 @@ function AgentPickerView({
   error,
   onStart,
   onCancel,
+  t,
 }: {
   agents: Agent[] | null;
   error: string | null;
   onStart: (a: Agent, prefill?: string) => void;
   onCancel?: () => void;
+  t: T;
 }) {
   const [selected, setSelected] = useState<Agent | null>(null);
 
@@ -674,6 +717,7 @@ function AgentPickerView({
         agent={selected}
         onBack={() => setSelected(null)}
         onStart={(prefill) => onStart(selected, prefill)}
+        t={t}
       />
     );
   }
@@ -682,29 +726,29 @@ function AgentPickerView({
     <div className="thin-scroll flex-1 overflow-y-auto px-4 py-8">
       <div className="mx-auto max-w-3xl">
         <div className="flex items-center justify-between mb-4">
-          <h2 className="text-xl font-semibold">Pick an agent</h2>
+          <h2 className="text-xl font-semibold">{t.chat.pickAgent}</h2>
           {onCancel && (
             <button
               onClick={onCancel}
               className="text-sm text-neutral-500 hover:text-black dark:hover:text-white"
             >
-              Cancel
+              {t.chat.cancel}
             </button>
           )}
         </div>
 
         {error && (
           <div className="rounded-lg border border-red-500/30 bg-red-500/10 px-3 py-2 text-sm text-red-700 dark:text-red-300 mb-4">
-            Failed to load agents: {error}
+            {t.chat.failedToLoadAgents(error)}
           </div>
         )}
 
         {agents === null && !error && (
-          <div className="text-sm text-neutral-500">Loading agents…</div>
+          <div className="text-sm text-neutral-500">{t.chat.loadingAgents}</div>
         )}
 
         {agents && agents.length === 0 && (
-          <div className="text-sm text-neutral-500">No agents available.</div>
+          <div className="text-sm text-neutral-500">{t.chat.noAgents}</div>
         )}
 
         <ul className="grid gap-2">
@@ -727,13 +771,13 @@ function AgentPickerView({
                     onClick={() => setSelected(a)}
                     className="text-xs text-neutral-500 hover:text-black dark:hover:text-white px-2 py-1"
                   >
-                    Details
+                    {t.chat.details}
                   </button>
                   <button
                     onClick={() => onStart(a)}
                     className="text-xs rounded-md bg-black text-white dark:bg-white dark:text-black px-2 py-1 hover:opacity-90"
                   >
-                    Start
+                    {t.chat.start}
                   </button>
                 </div>
               </div>
@@ -749,10 +793,12 @@ function AgentDetail({
   agent,
   onBack,
   onStart,
+  t,
 }: {
   agent: Agent;
   onBack: () => void;
   onStart: (prefill?: string) => void;
+  t: T;
 }) {
   const [card, setCard] = useState<AgentCard | null>(null);
   const [error, setError] = useState<string | null>(null);
@@ -766,13 +812,16 @@ function AgentDetail({
         const url = `/api/agent-card?url=${encodeURIComponent(agent.agentCardURL)}`;
         const res = await fetch(url);
         if (!res.ok) {
-          const body = (await res.json().catch(() => ({}))) as { error?: string };
+          const body = (await res.json().catch(() => ({}))) as {
+            error?: string;
+          };
           throw new Error(body.error ?? `HTTP ${res.status}`);
         }
         const data = (await res.json()) as { card: AgentCard };
         if (!cancelled) setCard(data.card);
       } catch (e) {
-        if (!cancelled) setError(e instanceof Error ? e.message : "unknown");
+        if (!cancelled)
+          setError(e instanceof Error ? e.message : "unknown");
       }
     })();
     return () => {
@@ -788,13 +837,13 @@ function AgentDetail({
             onClick={onBack}
             className="text-sm text-neutral-500 hover:text-black dark:hover:text-white"
           >
-            ← Back
+            {t.chat.back}
           </button>
           <button
             onClick={() => onStart()}
             className="rounded-lg bg-black text-white dark:bg-white dark:text-black px-3 py-1.5 text-sm font-medium hover:opacity-90"
           >
-            Start chat
+            {t.chat.startChat}
           </button>
         </div>
 
@@ -802,39 +851,57 @@ function AgentDetail({
 
         {error && (
           <div className="mt-4 rounded-lg border border-red-500/30 bg-red-500/10 px-3 py-2 text-sm text-red-700 dark:text-red-300">
-            Failed to load agent card: {error}
+            {t.chat.failedToLoadAgentCard(error)}
           </div>
         )}
 
         {!card && !error && (
-          <div className="mt-4 text-sm text-neutral-500">Loading agent card…</div>
+          <div className="mt-4 text-sm text-neutral-500">
+            {t.chat.loadingAgentCard}
+          </div>
         )}
 
         {card && (
           <div className="mt-4 space-y-6">
             {card.description && (
-              <p className="text-neutral-700 dark:text-neutral-300">{card.description}</p>
+              <p className="text-neutral-700 dark:text-neutral-300">
+                {card.description}
+              </p>
             )}
 
             <div className="grid grid-cols-2 gap-3 text-sm">
-              {card.version && <Meta label="Version" value={card.version} />}
+              {card.version && (
+                <Meta label={t.chat.version} value={card.version} />
+              )}
               {card.capabilities?.streaming !== undefined && (
                 <Meta
-                  label="Streaming"
-                  value={card.capabilities.streaming ? "Yes" : "No"}
+                  label={t.chat.streaming}
+                  value={
+                    card.capabilities.streaming ? t.chat.yes : t.chat.no
+                  }
                 />
               )}
               {card.capabilities?.pushNotifications !== undefined && (
                 <Meta
-                  label="Push notifications"
-                  value={card.capabilities.pushNotifications ? "Yes" : "No"}
+                  label={t.chat.pushNotifications}
+                  value={
+                    card.capabilities.pushNotifications
+                      ? t.chat.yes
+                      : t.chat.no
+                  }
                 />
               )}
               {card.defaultInputModes?.length ? (
-                <Meta label="Input modes" value={card.defaultInputModes.join(", ")} />
+                <Meta
+                  label={t.chat.inputModes}
+                  value={card.defaultInputModes.join(", ")}
+                />
               ) : null}
               {card.defaultOutputModes?.length ? (
-                <Meta label="Output modes" value={card.defaultOutputModes.join(", ")} />
+                <Meta
+                  label={t.chat.outputModes}
+                  value={card.defaultOutputModes.join(", ")}
+                />
               ) : null}
             </div>
 
@@ -846,7 +913,7 @@ function AgentDetail({
                   rel="noreferrer"
                   className="text-sm text-blue-600 dark:text-blue-400 hover:underline"
                 >
-                  View documentation ↗
+                  {t.chat.viewDocumentation}
                 </a>
               </div>
             )}
@@ -854,7 +921,7 @@ function AgentDetail({
             {card.skills?.length ? (
               <section>
                 <h3 className="text-sm font-semibold uppercase tracking-wide text-neutral-500 mb-2">
-                  Skills
+                  {t.chat.skills}
                 </h3>
                 <ul className="space-y-3">
                   {card.skills.map((s) => (
@@ -864,12 +931,12 @@ function AgentDetail({
                     >
                       <div className="flex items-center gap-2 flex-wrap">
                         <span className="font-medium">{s.name}</span>
-                        {s.tags?.map((t) => (
+                        {s.tags?.map((tag) => (
                           <span
-                            key={t}
+                            key={tag}
                             className="text-xs rounded-full bg-neutral-100 dark:bg-neutral-800 px-2 py-0.5 text-neutral-600 dark:text-neutral-400"
                           >
-                            {t}
+                            {tag}
                           </span>
                         ))}
                       </div>
@@ -881,7 +948,7 @@ function AgentDetail({
                       {s.examples?.length ? (
                         <div className="mt-3">
                           <div className="text-xs uppercase tracking-wide text-neutral-500 mb-1">
-                            Try one
+                            {t.chat.tryOne}
                           </div>
                           <ul className="flex flex-wrap gap-2">
                             {s.examples.map((ex, i) => (
@@ -906,24 +973,6 @@ function AgentDetail({
         )}
       </div>
     </div>
-  );
-}
-
-function GearIcon() {
-  return (
-    <svg
-      viewBox="0 0 24 24"
-      fill="none"
-      stroke="currentColor"
-      strokeWidth="1.8"
-      strokeLinecap="round"
-      strokeLinejoin="round"
-      className="size-4"
-      aria-hidden="true"
-    >
-      <path d="M9.594 3.94c.09-.542.56-.94 1.11-.94h2.593c.55 0 1.02.398 1.11.94l.214 1.281c.063.374.313.686.645.87.074.04.147.083.22.127.325.196.72.257 1.075.124l1.217-.456a1.125 1.125 0 0 1 1.37.49l1.296 2.247a1.125 1.125 0 0 1-.26 1.431l-1.003.827c-.293.241-.438.613-.43.992a6.759 6.759 0 0 1 0 .255c-.008.378.137.75.43.991l1.004.827c.424.35.534.954.26 1.43l-1.298 2.247a1.125 1.125 0 0 1-1.369.491l-1.217-.456c-.355-.133-.75-.072-1.076.124a6.57 6.57 0 0 1-.22.128c-.331.183-.581.495-.644.869l-.213 1.281c-.09.543-.56.94-1.11.94h-2.594c-.55 0-1.019-.398-1.11-.94l-.213-1.281c-.062-.374-.312-.686-.644-.87a6.52 6.52 0 0 1-.22-.127c-.325-.196-.72-.257-1.076-.124l-1.217.456a1.125 1.125 0 0 1-1.369-.49l-1.297-2.247a1.125 1.125 0 0 1 .26-1.431l1.004-.827c.292-.24.437-.613.43-.991a6.932 6.932 0 0 1 0-.255c.007-.38-.138-.751-.43-.992l-1.004-.827a1.125 1.125 0 0 1-.26-1.43l1.297-2.247a1.125 1.125 0 0 1 1.37-.491l1.216.456c.356.133.751.072 1.076-.124.072-.044.146-.087.22-.128.332-.183.582-.495.644-.869l.214-1.28Z" />
-      <circle cx="12" cy="12" r="3" />
-    </svg>
   );
 }
 

@@ -2,40 +2,48 @@
 
 import Link from "next/link";
 import type { ReactNode } from "react";
+import type { Locale } from "@/lib/i18n";
+import { getT } from "@/lib/i18n";
+import { LanguageSwitcher } from "@/components/LanguageSwitcher";
 
 type Section = "chat" | "mcp";
-
-const TABS: { id: Section; href: string; label: string; icon: ReactNode }[] = [
-  { id: "chat", href: "/chat", label: "Chat", icon: <ChatIcon /> },
-  { id: "mcp", href: "/mcp", label: "MCP", icon: <PlugIcon /> },
-];
 
 export function Sidebar({
   current,
   userName,
+  locale,
   children,
 }: {
   current: Section;
   userName: string | null;
+  locale: Locale;
   children: ReactNode;
 }) {
+  const t = getT(locale);
+
+  const TABS: { id: Section; href: string; label: string; icon: ReactNode }[] =
+    [
+      { id: "chat", href: "/chat", label: t.sidebar.tabs.chat, icon: <ChatIcon /> },
+      { id: "mcp", href: "/mcp", label: t.sidebar.tabs.mcp, icon: <PlugIcon /> },
+    ];
+
   return (
     <aside className="w-72 shrink-0 border-r border-black/10 dark:border-white/10 bg-neutral-50 dark:bg-neutral-950 flex flex-col">
       <nav className="p-2 border-b border-black/10 dark:border-white/10 flex gap-1">
-        {TABS.map((t) => {
-          const active = t.id === current;
+        {TABS.map((tab) => {
+          const active = tab.id === current;
           return (
             <Link
-              key={t.id}
-              href={t.href}
+              key={tab.id}
+              href={tab.href}
               className={`flex-1 flex items-center justify-center gap-1.5 rounded-md px-2 py-1.5 text-sm transition ${
                 active
                   ? "bg-black text-white dark:bg-white dark:text-black"
                   : "text-neutral-600 dark:text-neutral-400 hover:bg-black/5 dark:hover:bg-white/5"
               }`}
             >
-              {t.icon}
-              {t.label}
+              {tab.icon}
+              {tab.label}
             </Link>
           );
         })}
@@ -44,8 +52,17 @@ export function Sidebar({
       <div className="flex-1 min-h-0 flex flex-col">{children}</div>
 
       <div className="p-3 border-t border-black/10 dark:border-white/10 text-sm space-y-2">
-        <div className="truncate text-neutral-600 dark:text-neutral-400">
-          {userName ?? "Signed in"}
+        <div className="flex items-center justify-between min-w-0">
+          <div className="flex items-center gap-2 min-w-0">
+            <span
+              className="size-2 shrink-0 rounded-full bg-green-500"
+              aria-label="Signed in"
+            />
+            <span className="truncate text-neutral-600 dark:text-neutral-400">
+              {userName ?? t.sidebar.signedIn}
+            </span>
+          </div>
+          <LanguageSwitcher locale={locale} />
         </div>
         <div className="flex items-center justify-between">
           <Link
@@ -53,14 +70,14 @@ export function Sidebar({
             className="inline-flex items-center gap-1.5 text-neutral-500 hover:text-black dark:hover:text-white"
           >
             <GearIcon />
-            Settings
+            {t.sidebar.settings}
           </Link>
           <form action="/api/auth/logout" method="post">
             <button
               type="submit"
               className="text-neutral-500 hover:text-black dark:hover:text-white"
             >
-              Sign out
+              {t.sidebar.signOut}
             </button>
           </form>
         </div>

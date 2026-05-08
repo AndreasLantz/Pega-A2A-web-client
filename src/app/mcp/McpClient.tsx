@@ -3,6 +3,8 @@
 import { useEffect, useMemo, useState } from "react";
 import ReactMarkdown from "react-markdown";
 import remarkGfm from "remark-gfm";
+import type { Locale } from "@/lib/i18n";
+import { getT } from "@/lib/i18n";
 import { Sidebar } from "@/components/Sidebar";
 
 const STORAGE_KEY = "aiapp.mcp.recent";
@@ -21,8 +23,7 @@ interface RecentCall {
   id: string;
   serverHandle: string;
   method: string;
-  params: string; // raw JSON text
-  ranAt: string;
+  params: string;
 }
 
 interface CallResult {
@@ -56,7 +57,16 @@ function saveRecent(items: RecentCall[]) {
   }
 }
 
-export default function McpClient({ userName }: { userName: string | null }) {
+type T = ReturnType<typeof getT>;
+
+export default function McpClient({
+  userName,
+  locale,
+}: {
+  userName: string | null;
+  locale: Locale;
+}) {
+  const t = getT(locale);
   const [serverHandle, setServerHandle] = useState("");
   const [method, setMethod] = useState("tools/list");
   const [params, setParams] = useState("{}");
@@ -84,7 +94,10 @@ export default function McpClient({ userName }: { userName: string | null }) {
     try {
       return { ok: true as const, value: JSON.parse(params) as unknown };
     } catch (e) {
-      return { ok: false as const, error: e instanceof Error ? e.message : "Invalid JSON" };
+      return {
+        ok: false as const,
+        error: e instanceof Error ? e.message : "Invalid JSON",
+      };
     }
   }, [params]);
 
@@ -126,7 +139,6 @@ export default function McpClient({ userName }: { userName: string | null }) {
         serverHandle: serverHandle.trim(),
         method: method.trim(),
         params,
-        ranAt: new Date().toISOString(),
       };
       const next = [
         entry,
@@ -166,7 +178,7 @@ export default function McpClient({ userName }: { userName: string | null }) {
 
   return (
     <div className="flex flex-1 h-screen overflow-hidden">
-      <Sidebar current="mcp" userName={userName}>
+      <Sidebar current="mcp" userName={userName} locale={locale}>
         <div className="p-3 border-b border-black/10 dark:border-white/10">
           <button
             onClick={() => {
@@ -178,14 +190,14 @@ export default function McpClient({ userName }: { userName: string | null }) {
             }}
             className="w-full rounded-lg bg-black text-white dark:bg-white dark:text-black px-3 py-2 text-sm font-medium hover:opacity-90"
           >
-            + New call
+            {t.mcp.newCall}
           </button>
         </div>
 
         <div className="thin-scroll flex-1 overflow-y-auto">
           {recent.length === 0 ? (
             <div className="p-4 text-sm text-neutral-500">
-              No calls yet. Successful calls appear here.
+              {t.mcp.noCallsYet}
             </div>
           ) : (
             <ul className="p-2 space-y-1">
@@ -196,14 +208,19 @@ export default function McpClient({ userName }: { userName: string | null }) {
                     className="group w-full text-left rounded-lg px-3 py-2 text-sm transition flex items-start gap-2 hover:bg-black/5 dark:hover:bg-white/5"
                   >
                     <div className="flex-1 min-w-0">
-                      <div className="font-mono text-xs truncate" title={r.serverHandle}>
+                      <div
+                        className="font-mono text-xs truncate"
+                        title={r.serverHandle}
+                      >
                         {r.serverHandle}
                       </div>
-                      <div className="text-xs text-neutral-500 truncate">{r.method}</div>
+                      <div className="text-xs text-neutral-500 truncate">
+                        {r.method}
+                      </div>
                     </div>
                     <span
                       role="button"
-                      aria-label="Remove"
+                      aria-label={t.mcp.remove}
                       onClick={(e) => {
                         e.stopPropagation();
                         deleteRecent(r.id);
@@ -223,26 +240,29 @@ export default function McpClient({ userName }: { userName: string | null }) {
       <main className="flex-1 flex flex-col min-w-0 thin-scroll overflow-y-auto">
         <div className="mx-auto w-full max-w-4xl px-6 py-8 space-y-6">
           <header>
-            <h1 className="text-2xl font-semibold tracking-tight">MCP</h1>
+            <h1 className="text-2xl font-semibold tracking-tight">
+              {t.mcp.title}
+            </h1>
             <p className="mt-1 text-sm text-neutral-600 dark:text-neutral-400">
-              Make a JSON-RPC call to a Pega-hosted MCP server. Paste the server endpoint
-              URL, pick a method, and tweak params.
+              {t.mcp.description}
             </p>
           </header>
 
           {env && !env.appAlias && (
             <div className="rounded-lg border border-amber-500/30 bg-amber-500/10 px-3 py-2 text-sm text-amber-800 dark:text-amber-200">
-              Set the <strong>Pega application alias</strong> in{" "}
+              {t.mcp.setAppAlias.pre}{" "}
+              <strong>{t.mcp.setAppAlias.bold}</strong>{" "}
+              {t.mcp.setAppAlias.mid}{" "}
               <a href="/settings" className="underline font-medium">
-                Settings
+                {t.mcp.setAppAlias.settings}
               </a>{" "}
-              to call MCP servers.
+              {t.mcp.setAppAlias.post}
             </div>
           )}
 
           <div className="space-y-4 rounded-2xl border border-black/10 dark:border-white/10 bg-white dark:bg-neutral-900 p-5">
             <div>
-              <label className="text-sm font-medium">MCP server handle</label>
+              <label className="text-sm font-medium">{t.mcp.serverHandle}</label>
               <input
                 value={serverHandle}
                 onChange={(e) => setServerHandle(e.target.value)}
@@ -250,11 +270,11 @@ export default function McpClient({ userName }: { userName: string | null }) {
                 className="mt-1 w-full rounded-lg border border-black/10 dark:border-white/10 bg-white dark:bg-neutral-950 px-3 py-2 text-sm font-mono focus:outline-none focus:ring-2 focus:ring-black/20 dark:focus:ring-white/20"
               />
               <p className="mt-1 text-xs text-neutral-500">
-                The segment after <code>/mcp/</code> in the server URL.
+                {t.mcp.serverHandleHint}
               </p>
               {env?.baseUrl && env?.appAlias && (
                 <div className="mt-1.5 text-xs text-neutral-500 truncate">
-                  Resolves to{" "}
+                  {t.mcp.resolvesTo}{" "}
                   <span className="font-mono break-all select-all">
                     {`${env.baseUrl.replace(/\/+$/, "")}/app/${env.appAlias}/api/service/v1/mcp/`}
                     <span className="text-neutral-700 dark:text-neutral-300">
@@ -267,7 +287,7 @@ export default function McpClient({ userName }: { userName: string | null }) {
 
             <div className="grid sm:grid-cols-[1fr_auto] gap-3">
               <div>
-                <label className="text-sm font-medium">Method</label>
+                <label className="text-sm font-medium">{t.mcp.method}</label>
                 <div className="mt-1 flex gap-2">
                   <select
                     value={isCommon ? method : "__custom__"}
@@ -282,7 +302,7 @@ export default function McpClient({ userName }: { userName: string | null }) {
                         {m}
                       </option>
                     ))}
-                    <option value="__custom__">custom…</option>
+                    <option value="__custom__">{t.mcp.custom}</option>
                   </select>
                   <input
                     value={method}
@@ -295,7 +315,7 @@ export default function McpClient({ userName }: { userName: string | null }) {
             </div>
 
             <div>
-              <label className="text-sm font-medium">Params (JSON)</label>
+              <label className="text-sm font-medium">{t.mcp.params}</label>
               <textarea
                 value={params}
                 onChange={(e) => setParams(e.target.value)}
@@ -322,22 +342,24 @@ export default function McpClient({ userName }: { userName: string | null }) {
                 }
                 className="rounded-lg bg-black text-white dark:bg-white dark:text-black px-4 py-2 text-sm font-medium disabled:opacity-40 hover:opacity-90"
               >
-                {calling ? "Calling…" : "Call"}
+                {calling ? t.mcp.calling : t.mcp.call}
               </button>
               {callError && (
-                <span className="text-sm text-red-600 dark:text-red-400">{callError}</span>
+                <span className="text-sm text-red-600 dark:text-red-400">
+                  {callError}
+                </span>
               )}
             </div>
           </div>
 
-          {result && <ResponseView result={result} />}
+          {result && <ResponseView result={result} t={t} />}
         </div>
       </main>
     </div>
   );
 }
 
-function ResponseView({ result }: { result: CallResult }) {
+function ResponseView({ result, t }: { result: CallResult; t: T }) {
   const { response, httpStatus, elapsedMs } = result;
   const statusOk = httpStatus >= 200 && httpStatus < 300;
   const rpcError =
@@ -354,7 +376,7 @@ function ResponseView({ result }: { result: CallResult }) {
   return (
     <section className="space-y-4">
       <div className="flex flex-wrap items-baseline gap-x-3 gap-y-1 text-sm">
-        <h2 className="text-lg font-semibold">Response</h2>
+        <h2 className="text-lg font-semibold">{t.mcp.response}</h2>
         <span
           className={`text-xs rounded-full px-2 py-0.5 ${
             statusOk
@@ -370,7 +392,7 @@ function ResponseView({ result }: { result: CallResult }) {
       {rpcError ? (
         <RpcErrorView error={(response as { error: unknown }).error} />
       ) : isToolsListResult(rpcResult) ? (
-        <ToolsList tools={rpcResult.tools} />
+        <ToolsList tools={rpcResult.tools} t={t} />
       ) : (
         <JsonView value={response} />
       )}
@@ -415,22 +437,22 @@ function isToolsListResult(value: unknown): value is { tools: ToolDef[] } {
   );
 }
 
-function ToolsList({ tools }: { tools: ToolDef[] }) {
+function ToolsList({ tools, t }: { tools: ToolDef[]; t: T }) {
   return (
     <div className="space-y-3">
       <div className="text-xs uppercase tracking-wide text-neutral-500">
-        {tools.length} tool{tools.length === 1 ? "" : "s"}
+        {t.mcp.tools(tools.length)}
       </div>
       <ul className="space-y-3">
-        {tools.map((t) => (
-          <ToolCard key={t.name} tool={t} />
+        {tools.map((tool) => (
+          <ToolCard key={tool.name} tool={tool} t={t} />
         ))}
       </ul>
     </div>
   );
 }
 
-function ToolCard({ tool }: { tool: ToolDef }) {
+function ToolCard({ tool, t }: { tool: ToolDef; t: T }) {
   const props = tool.inputSchema?.properties ?? {};
   const required = new Set(tool.inputSchema?.required ?? []);
   const propEntries = Object.entries(props);
@@ -453,7 +475,7 @@ function ToolCard({ tool }: { tool: ToolDef }) {
       {propEntries.length > 0 ? (
         <div className="mt-4">
           <div className="text-xs uppercase tracking-wide text-neutral-500 mb-1.5">
-            Inputs
+            {t.mcp.inputs}
           </div>
           <ul className="space-y-1.5">
             {propEntries.map(([name, def]) => (
@@ -466,10 +488,12 @@ function ToolCard({ tool }: { tool: ToolDef }) {
                 )}
                 {required.has(name) ? (
                   <span className="text-xs text-amber-600 dark:text-amber-400">
-                    required
+                    {t.mcp.required}
                   </span>
                 ) : (
-                  <span className="text-xs text-neutral-400">optional</span>
+                  <span className="text-xs text-neutral-400">
+                    {t.mcp.optional}
+                  </span>
                 )}
                 {def.description && (
                   <span className="text-xs text-neutral-600 dark:text-neutral-400 basis-full pl-1">
@@ -481,13 +505,13 @@ function ToolCard({ tool }: { tool: ToolDef }) {
           </ul>
         </div>
       ) : (
-        <div className="mt-3 text-xs text-neutral-500">No inputs</div>
+        <div className="mt-3 text-xs text-neutral-500">{t.mcp.noInputs}</div>
       )}
 
       {tool._meta ? (
         <details className="mt-3">
           <summary className="text-xs text-neutral-500 cursor-pointer hover:text-black dark:hover:text-white">
-            meta
+            {t.mcp.meta}
           </summary>
           <div className="mt-2">
             <JsonView value={tool._meta} />
@@ -501,11 +525,21 @@ function ToolCard({ tool }: { tool: ToolDef }) {
 function JsonView({ value, depth = 0 }: { value: unknown; depth?: number }) {
   if (value === null) return <span className="text-neutral-500">null</span>;
   if (typeof value === "string")
-    return <span className="text-green-700 dark:text-green-400">{JSON.stringify(value)}</span>;
+    return (
+      <span className="text-green-700 dark:text-green-400">
+        {JSON.stringify(value)}
+      </span>
+    );
   if (typeof value === "number")
-    return <span className="text-blue-700 dark:text-blue-400">{value}</span>;
+    return (
+      <span className="text-blue-700 dark:text-blue-400">{value}</span>
+    );
   if (typeof value === "boolean")
-    return <span className="text-purple-700 dark:text-purple-400">{String(value)}</span>;
+    return (
+      <span className="text-purple-700 dark:text-purple-400">
+        {String(value)}
+      </span>
+    );
   if (Array.isArray(value)) {
     if (value.length === 0) return <span>[]</span>;
     return (
@@ -537,7 +571,9 @@ function JsonView({ value, depth = 0 }: { value: unknown; depth?: number }) {
         <ul className="ml-4 border-l border-black/10 dark:border-white/10 pl-3 space-y-0.5">
           {entries.map(([k, v]) => (
             <li key={k} className="text-xs font-mono">
-              <span className="text-neutral-700 dark:text-neutral-300">{k}: </span>
+              <span className="text-neutral-700 dark:text-neutral-300">
+                {k}:{" "}
+              </span>
               <JsonView value={v} depth={depth + 1} />
             </li>
           ))}

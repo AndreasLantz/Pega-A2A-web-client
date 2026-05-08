@@ -1,5 +1,8 @@
+import { cookies } from "next/headers";
 import Link from "next/link";
 import { isConfigured } from "@/lib/config";
+import { getLocale, getT } from "@/lib/i18n";
+import { LanguageSwitcher } from "@/components/LanguageSwitcher";
 
 type SearchParams = Promise<{ error?: string; error_description?: string }>;
 
@@ -10,18 +13,29 @@ export default async function LoginPage({
 }) {
   const { error, error_description } = await searchParams;
   const configured = isConfigured();
+  const locale = getLocale((await cookies()).get("aiapp.locale")?.value);
+  const t = getT(locale);
 
   return (
     <main className="flex-1 flex items-center justify-center px-4">
       <div className="w-full max-w-md rounded-2xl border border-black/10 dark:border-white/10 bg-white dark:bg-neutral-900 p-8 shadow-sm">
-        <h1 className="text-2xl font-semibold tracking-tight">Pega Agents Chat</h1>
-        <p className="mt-2 text-sm text-neutral-600 dark:text-neutral-400">
-          Sign in with your Pega account to start chatting with agents.
-        </p>
+        <div className="flex items-start justify-between">
+          <div>
+            <h1 className="text-2xl font-semibold tracking-tight">
+              {t.login.title}
+            </h1>
+            <p className="mt-2 text-sm text-neutral-600 dark:text-neutral-400">
+              {t.login.subtitle}
+            </p>
+          </div>
+          <LanguageSwitcher locale={locale} />
+        </div>
 
         {error && (
           <div className="mt-4 rounded-lg border border-red-500/30 bg-red-500/10 p-3 text-sm text-red-700 dark:text-red-300">
-            <div className="font-medium">Sign-in failed: {error}</div>
+            <div className="font-medium">
+              {t.login.signInFailed} {error}
+            </div>
             {error_description && (
               <div className="mt-1 opacity-80">{error_description}</div>
             )}
@@ -30,11 +44,11 @@ export default async function LoginPage({
 
         {!configured && (
           <div className="mt-4 rounded-lg border border-amber-500/30 bg-amber-500/10 p-3 text-sm text-amber-800 dark:text-amber-200">
-            This app isn&apos;t configured yet.{" "}
+            {t.login.notConfiguredPre}{" "}
             <Link href="/settings" className="underline font-medium">
-              Open settings
+              {t.login.notConfiguredLink}
             </Link>{" "}
-            to connect your Pega instance.
+            {t.login.notConfiguredPost}
           </div>
         )}
 
@@ -47,7 +61,7 @@ export default async function LoginPage({
               : "bg-neutral-200 text-neutral-400 dark:bg-neutral-800 dark:text-neutral-600 pointer-events-none"
           }`}
         >
-          Sign in with Pega
+          {t.login.signInButton}
         </a>
 
         <div className="mt-4 text-center">
@@ -55,7 +69,7 @@ export default async function LoginPage({
             href="/settings"
             className="text-xs text-neutral-500 hover:text-black dark:hover:text-white"
           >
-            Settings
+            {t.login.settingsLink}
           </Link>
         </div>
       </div>
